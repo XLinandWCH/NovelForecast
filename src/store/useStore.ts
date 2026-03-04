@@ -40,6 +40,25 @@ export interface Settings {
   ragModel: string;
 }
 
+export interface GraphNode {
+  id: string;
+  name: string;
+  group: number;
+  val: number;
+}
+
+export interface GraphLink {
+  source: string;
+  target: string;
+  label: string;
+  polarity: 'positive' | 'negative' | 'neutral';
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
 interface AppState {
   sessions: ChatSession[];
   activeSessionId: string | null;
@@ -47,11 +66,12 @@ interface AppState {
   settings: Settings;
   isSettingsOpen: boolean;
   isUploadModalOpen: boolean;
-  leftPanelMode: "mindmap" | "text";
+  leftPanelMode: "mindmap" | "text" | "graph";
   selectedFileId: string | null;
   activeNav: "chat" | "files";
   isSidebarOpen: boolean;
   mobileTab: "workspace" | "chat";
+  graphData: GraphData | null;
 
   setActiveNav: (nav: "chat" | "files") => void;
   toggleSidebar: () => void;
@@ -70,8 +90,9 @@ interface AppState {
   updateSettings: (settings: Partial<Settings>) => void;
   setSettingsOpen: (isOpen: boolean) => void;
   setUploadModalOpen: (isOpen: boolean) => void;
-  setLeftPanelMode: (mode: "mindmap" | "text") => void;
+  setLeftPanelMode: (mode: "mindmap" | "text" | "graph") => void;
   setSelectedFileId: (id: string | null) => void;
+  setGraphData: (data: GraphData | null) => void;
 }
 
 const initialSessionId = Date.now().toString();
@@ -111,6 +132,7 @@ export const useStore = create<AppState>()(
       activeNav: "files",
       isSidebarOpen: true,
       mobileTab: "chat",
+      graphData: null,
 
       setActiveNav: (nav) => set({ activeNav: nav, isSidebarOpen: true }),
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
@@ -190,6 +212,7 @@ export const useStore = create<AppState>()(
       setUploadModalOpen: (isOpen) => set({ isUploadModalOpen: isOpen }),
       setLeftPanelMode: (mode) => set({ leftPanelMode: mode }),
       setSelectedFileId: (id) => set({ selectedFileId: id }),
+      setGraphData: (data) => set({ graphData: data }),
     }),
     {
       name: 'novel-ai-storage',

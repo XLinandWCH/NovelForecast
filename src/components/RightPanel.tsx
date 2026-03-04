@@ -150,8 +150,8 @@ export default function RightPanel() {
       {/* Header */}
       <div className="h-14 border-b border-gray-300 flex items-center justify-between px-6 bg-[#f5f5f5]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#07c160] rounded-full flex items-center justify-center text-white">
-            <Bot size={18} />
+          <div className="w-8 h-8 bg-[#07c160] rounded-full flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+            <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-800">
@@ -169,7 +169,9 @@ export default function RightPanel() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
-            <Bot size={48} className="text-gray-300" />
+            <div className="w-16 h-16 bg-[#07c160] rounded-2xl flex items-center justify-center text-white overflow-hidden shadow-md">
+              <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
+            </div>
             <p className="text-sm">
               你好！我是小说预测助手，请在左侧上传文档，然后向我提问。
             </p>
@@ -186,7 +188,7 @@ export default function RightPanel() {
                     ? "bg-blue-500 text-white"
                     : msg.role === "system"
                       ? "bg-red-500 text-white"
-                      : "bg-[#07c160] text-white"
+                      : "bg-[#07c160] text-white overflow-hidden"
                 }`}
               >
                 {msg.role === "user" ? (
@@ -194,7 +196,7 @@ export default function RightPanel() {
                 ) : msg.role === "system" ? (
                   <Settings2 size={20} />
                 ) : (
-                  <Bot size={20} />
+                  <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
                 )}
               </div>
 
@@ -208,10 +210,10 @@ export default function RightPanel() {
                 }`}
               >
                 {msg.role === "user" ? (
-                  msg.content.split("\\n").map((line, i) => (
+                  msg.content.split("\n").map((line, i) => (
                     <React.Fragment key={i}>
                       {line}
-                      {i !== msg.content.split("\\n").length - 1 && <br />}
+                      {i !== msg.content.split("\n").length - 1 && <br />}
                     </React.Fragment>
                   ))
                 ) : (
@@ -226,8 +228,8 @@ export default function RightPanel() {
 
         {isLoading && (
           <div className="flex gap-4 max-w-[85%]">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-[#07c160] text-white">
-              <Bot size={20} />
+            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-[#07c160] text-white overflow-hidden">
+              <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
             </div>
             <div className="p-4 rounded-2xl bg-white text-gray-500 rounded-tl-sm flex items-center gap-2 shadow-sm">
               <Loader2 size={16} className="animate-spin" />
