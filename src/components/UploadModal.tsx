@@ -2,37 +2,64 @@ import React, { useState, useRef } from 'react';
 import { X, Upload, Link as LinkIcon, FileText } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { parseFile } from '../utils/fileParser';
+import { chunkText, getEmbeddings } from '../utils/ragClient';
 
-interface UploadModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
-  const { addFile, setSelectedFileId, settings, updateFileStatus } = useStore();
+export default function UploadModal() {
+  const { addFile, setSelectedFileId, settings, updateFileStatus, updateFileChunks, isUploadModalOpen, setUploadModalOpen } = useStore();
   const [activeTab, setActiveTab] = useState<'local' | 'url'>('local');
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  if (!isUploadModalOpen) return null;
 
-  const simulateRagParsing = async (fileId: string) => {
-    // Check if RAG is configured (basic check)
+  const handleClose = () => {
+    setUploadModalOpen(false);
+  };
+
+  const processRagParsing = async (fileId: string, content: string) => {
     if (!settings.ragBaseUrl || settings.ragBaseUrl.trim() === '') {
       updateFileStatus(fileId, 'waiting');
       return;
     }
 
-    updateFileStatus(fileId, 'parsing', 0);
-    
-    // Simulate parsing progress
-    for (let i = 10; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      updateFileStatus(fileId, 'parsing', i);
+    try {
+      updateFileStatus(fileId, 'parsing', 5);
+      
+      // 1. Chunk the text (500 chars, 50 overlap)
+      const textChunks = chunkText(content, 500, 50);
+      
+      if (textChunks.length === 0) {
+        updateFileStatus(fileId, 'parsed', 100);
+        return;
+      }
+
+      // 2. Process in batches to avoid payload too large
+      const batchSize = 10;
+      const allChunks: { text: string; embedding: number[] }[] = [];
+      
+      for (let i = 0; i < textChunks.length; i += batchSize) {
+        const batch = textChunks.slice(i, i + batchSize);
+        
+        // Call actual embedding API
+        const embeddings = await getEmbeddings(batch, settings);
+        
+        batch.forEach((text, index) => {
+          allChunks.push({ text, embedding: embeddings[index] });
+        });
+        
+        const progress = 5 + Math.floor(((i + batch.length) / textChunks.length) * 95);
+        updateFileStatus(fileId, 'parsing', progress);
+      }
+      
+      // 3. Save chunks to store
+      updateFileChunks(fileId, allChunks);
+      updateFileStatus(fileId, 'parsed', 100);
+      
+    } catch (error) {
+      console.error("RAG Parsing error:", error);
+      updateFileStatus(fileId, 'error');
     }
-    
-    updateFileStatus(fileId, 'parsed', 100);
   };
 
   const handleLocalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,10 +84,10 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         addFile(newFile);
         setSelectedFileId(newFile.id);
         
-        // Start RAG parsing simulation in background
-        simulateRagParsing(newFileId);
+        // Start actual RAG parsing in background
+        processRagParsing(newFileId, content);
       }
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Error parsing file:', error);
       alert('解析文件失败，请确保是有效的 txt, docx 或 pdf 文件。');
@@ -105,10 +132,10 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       addFile(newFile);
       setSelectedFileId(newFile.id);
       
-      // Start RAG parsing simulation in background
-      simulateRagParsing(newFileId);
+      // Start actual RAG parsing in background
+      processRagParsing(newFileId, cleanContent);
       
-      onClose();
+      handleClose();
       setUrl('');
     } catch (error) {
       console.error('Error fetching URL:', error);
@@ -119,12 +146,12 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-800">上传知识库文件</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X size={18} />

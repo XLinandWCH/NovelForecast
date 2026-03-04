@@ -3,6 +3,7 @@ import { Send, Bot, User, Settings2, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useStore, Message } from "../store/useStore";
 import { streamAI } from "../utils/aiClient";
+import { getEmbeddings, cosineSimilarity } from "../utils/ragClient";
 
 export default function RightPanel() {
   const { 
@@ -45,12 +46,41 @@ export default function RightPanel() {
     }
 
     try {
-      // Simple RAG context: concatenate all file contents (truncate if too long)
-      const context = files
-        .filter(f => !f.id.startsWith('pred_')) // Don't include previous predictions in context to avoid loop
-        .map((f) => f.content)
-        .join("\n\n")
-        .substring(0, 8000); // 8000 chars limit for simple RAG
+      let context = "";
+      
+      // Actual RAG Semantic Search
+      if (settings.ragBaseUrl && settings.ragBaseUrl.trim() !== '') {
+        try {
+          // 1. Embed user query
+          const queryEmbedding = (await getEmbeddings([input], settings))[0];
+          
+          // 2. Collect all chunks from all parsed files
+          const allChunks: { text: string; similarity: number; fileName: string }[] = [];
+          files.forEach(f => {
+            if (!f.id.startsWith('pred_') && f.chunks) {
+              f.chunks.forEach(c => {
+                const sim = cosineSimilarity(queryEmbedding, c.embedding);
+                allChunks.push({ text: c.text, similarity: sim, fileName: f.name });
+              });
+            }
+          });
+          
+          // 3. Sort by similarity and take top K (e.g., top 5)
+          allChunks.sort((a, b) => b.similarity - a.similarity);
+          const topChunks = allChunks.slice(0, 5);
+          
+          if (topChunks.length > 0) {
+            context = "参考资料：\n" + topChunks.map(c => `[来自文件 ${c.fileName}]:\n${c.text}`).join("\n\n");
+          }
+        } catch (error) {
+          console.error("RAG Retrieval error:", error);
+          // Fallback to naive if RAG fails
+          context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
+        }
+      } else {
+        // Fallback to naive context if RAG not configured
+        context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
+      }
 
       let finalContent = '';
 
@@ -230,8 +260,8 @@ export default function RightPanel() {
               onChange={(e) => setSendMode(e.target.value as 'chat' | 'work')}
               className="text-xs font-medium bg-gray-100 text-gray-600 border-none rounded-md px-2 py-1 outline-none cursor-pointer hover:bg-gray-200 transition-colors"
             >
-              <option value="chat">💬 对话模式</option>
-              <option value="work">📝 工作模式 (生成预测文件)</option>
+              <option value="chat">对话模式</option>
+              <option value="work">工作模式</option>
             </select>
             <button
               onClick={handleSend}

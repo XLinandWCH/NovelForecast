@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Upload, File, Trash2, MessageSquare, Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import UploadModal from './UploadModal';
 
 export default function Sidebar() {
   const { 
     activeNav, 
     files, removeFile, selectedFileId, setSelectedFileId,
-    sessions, activeSessionId, setActiveSessionId, addSession, removeSession
+    sessions, activeSessionId, setActiveSessionId, addSession, removeSession,
+    setUploadModalOpen
   } = useStore();
-  
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   if (activeNav === 'chat') {
     return (
@@ -63,7 +61,7 @@ export default function Sidebar() {
       
       <div className="p-3 border-b border-gray-300">
         <button 
-          onClick={() => setIsUploadModalOpen(true)}
+          onClick={() => setUploadModalOpen(true)}
           className="w-full flex items-center justify-center gap-2 text-sm bg-[#07c160] hover:bg-[#06ad56] text-white px-3 py-2 rounded-md transition-colors shadow-sm"
         >
           <Upload size={16} />
@@ -121,11 +119,6 @@ export default function Sidebar() {
           </div>
         )}
       </div>
-
-      <UploadModal 
-        isOpen={isUploadModalOpen} 
-        onClose={() => setIsUploadModalOpen(false)} 
-      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import Sidebar from "./components/Sidebar";
 import LeftPanel from "./components/LeftPanel";
 import RightPanel from "./components/RightPanel";
 import SettingsModal from "./components/SettingsModal";
+import UploadModal from "./components/UploadModal";
 
 export default function App() {
   const { setSettingsOpen, activeNav, setActiveNav, isSidebarOpen, toggleSidebar, mobileTab, setMobileTab } = useStore();
@@ -153,6 +154,7 @@ export default function App() {
 
       {/* Settings Modal */}
       <SettingsModal />
+      <UploadModal />
     </div>
   );
 }
