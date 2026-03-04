@@ -25,7 +25,9 @@ ${context}
   try {
     if (settings.aiProvider === 'Gemini') {
       // Use Gemini SDK
-      const ai = new GoogleGenAI({ apiKey: settings.aiApiKey || process.env.GEMINI_API_KEY });
+      // Safely access process.env for browser environments (like Cloudflare Pages)
+      const defaultApiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : '';
+      const ai = new GoogleGenAI({ apiKey: settings.aiApiKey || defaultApiKey });
       
       const geminiMessages = messages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
