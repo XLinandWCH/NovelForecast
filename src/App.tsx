@@ -28,11 +28,11 @@ export default function App() {
       {/* Mobile Header */}
       <div className="md:hidden h-14 bg-[#2e2e2e] flex items-center justify-between px-4 z-30 shadow-md flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#07c160] rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md overflow-hidden">
+          <div className="w-8 h-8 flex items-center justify-center">
             <img 
               src="/ai-logo.png" 
               alt="AI" 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.parentElement!.innerText = 'AI';
@@ -53,11 +53,11 @@ export default function App() {
 
       {/* Desktop Sidebar / Navigation */}
       <div className="hidden md:flex w-16 bg-[#2e2e2e] flex-col items-center py-6 gap-6 z-20 shadow-lg flex-shrink-0">
-        <div className="w-10 h-10 bg-[#07c160] rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-md overflow-hidden">
+        <div className="w-10 h-10 flex items-center justify-center">
           <img 
             src="/ai-logo.png" 
             alt="AI" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               e.currentTarget.parentElement!.innerText = 'AI';

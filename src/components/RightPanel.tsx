@@ -72,8 +72,16 @@ export default function RightPanel() {
           if (topChunks.length > 0) {
             context = "参考资料：\n" + topChunks.map(c => `[来自文件 ${c.fileName}]:\n${c.text}`).join("\n\n");
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("RAG Retrieval error:", error);
+          
+          // Add a system message to inform the user about the RAG failure
+          addMessage({
+            id: `sys_${Date.now()}`,
+            role: "system",
+            content: `[系统提示] RAG 检索失败，已降级为全文匹配。\n\n**可能的原因：**\n1. RAG 服务未启动或配置错误。\n2. 跨域 (CORS) 限制：如果您在本地运行 RAG (如 http://localhost)，而当前网页是 HTTPS (如 Cloudflare)，浏览器会拦截请求 (Mixed Content)。\n\n**解决方法：**\n请使用 ngrok 或 Cloudflare Tunnels 将本地 RAG 服务暴露为 HTTPS 链接，并在设置中更新 RAG Base URL。\n\n*错误详情: ${error.message}*`,
+          });
+
           // Fallback to naive if RAG fails
           context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
         }
@@ -147,30 +155,12 @@ export default function RightPanel() {
 
   return (
     <div className="flex flex-col h-full bg-[#f5f5f5]">
-      {/* Header */}
-      <div className="h-14 border-b border-gray-300 flex items-center justify-between px-6 bg-[#f5f5f5]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#07c160] rounded-full flex items-center justify-center text-white overflow-hidden flex-shrink-0">
-            <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-gray-800">
-              小说预测助手
-            </h2>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-[#07c160]"></span>
-              {settings.aiProvider} | {settings.ragProvider}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
-            <div className="w-16 h-16 bg-[#07c160] rounded-2xl flex items-center justify-center text-white overflow-hidden shadow-md">
-              <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
+            <div className="w-16 h-16 bg-[#07c160] rounded-2xl flex items-center justify-center text-white shadow-md">
+              <Bot size={40} />
             </div>
             <p className="text-sm">
               你好！我是小说预测助手，请在左侧上传文档，然后向我提问。
@@ -188,7 +178,7 @@ export default function RightPanel() {
                     ? "bg-blue-500 text-white"
                     : msg.role === "system"
                       ? "bg-red-500 text-white"
-                      : "bg-[#07c160] text-white overflow-hidden"
+                      : "bg-[#07c160] text-white"
                 }`}
               >
                 {msg.role === "user" ? (
@@ -196,7 +186,7 @@ export default function RightPanel() {
                 ) : msg.role === "system" ? (
                   <Settings2 size={20} />
                 ) : (
-                  <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
+                  <Bot size={20} />
                 )}
               </div>
 
@@ -226,17 +216,6 @@ export default function RightPanel() {
           ))
         )}
 
-        {isLoading && (
-          <div className="flex gap-4 max-w-[85%]">
-            <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-[#07c160] text-white overflow-hidden">
-              <img src="/ai-logo.png" alt="AI" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerText = 'AI'; }} />
-            </div>
-            <div className="p-4 rounded-2xl bg-white text-gray-500 rounded-tl-sm flex items-center gap-2 shadow-sm">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm">正在思考...</span>
-            </div>
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
