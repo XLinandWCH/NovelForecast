@@ -6,11 +6,12 @@ import { streamAI } from "../utils/aiClient";
 
 export default function RightPanel() {
   const { 
-    sessions, activeSessionId, addMessage, settings, files, 
+    sessions, activeSessionId, addMessage, updateMessage, settings, files, 
     addFile, updateFileContent, setSelectedFileId, setLeftPanelMode, setActiveNav
   } = useStore();
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sendMode, setSendMode] = useState<'chat' | 'work'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -44,20 +45,6 @@ export default function RightPanel() {
     }
 
     try {
-      // Create a new file in the workspace for the prediction output
-      const predictionFileId = `pred_${Date.now()}`;
-      addFile({
-        id: predictionFileId,
-        name: `预测: ${input.substring(0, 10)}...`,
-        type: 'txt',
-        content: '正在生成预测结果...\n\n'
-      });
-      
-      // Switch to files view and select the new file
-      setActiveNav('files');
-      setSelectedFileId(predictionFileId);
-      setLeftPanelMode('text');
-
       // Simple RAG context: concatenate all file contents (truncate if too long)
       const context = files
         .filter(f => !f.id.startsWith('pred_')) // Don't include previous predictions in context to avoid loop
@@ -66,19 +53,49 @@ export default function RightPanel() {
         .substring(0, 8000); // 8000 chars limit for simple RAG
 
       let finalContent = '';
-      
-      await streamAI([...messages, userMessage], settings, context, (chunk) => {
-        finalContent = chunk;
-        updateFileContent(predictionFileId, chunk);
-      });
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `预测完成！结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看结构。`,
-      };
+      if (sendMode === 'work') {
+        // Create a new file in the workspace for the prediction output
+        const predictionFileId = `pred_${Date.now()}`;
+        addFile({
+          id: predictionFileId,
+          name: `预测: ${input.substring(0, 10)}...`,
+          type: 'txt',
+          content: '正在生成预测结果...\n\n'
+        });
+        
+        // Switch to files view and select the new file
+        setActiveNav('files');
+        setSelectedFileId(predictionFileId);
+        setLeftPanelMode('text');
 
-      addMessage(assistantMessage);
+        await streamAI([...messages, userMessage], settings, context, (chunk) => {
+          finalContent = chunk;
+          updateFileContent(predictionFileId, chunk);
+        });
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: `预测完成！结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看结构。`,
+        };
+        addMessage(assistantMessage);
+
+      } else {
+        // Chat mode: stream directly to a new message
+        const assistantMessageId = (Date.now() + 1).toString();
+        addMessage({
+          id: assistantMessageId,
+          role: "assistant",
+          content: "正在思考...",
+        });
+
+        await streamAI([...messages, userMessage], settings, context, (chunk) => {
+          finalContent = chunk;
+          updateMessage(assistantMessageId, chunk);
+        });
+      }
+
     } catch (error: any) {
       console.error("Error sending message:", error);
       addMessage({
@@ -193,7 +210,7 @@ export default function RightPanel() {
 
       {/* Input Area */}
       <div className="p-4 bg-[#f5f5f5] border-t border-gray-300">
-        <div className="bg-white rounded-xl border border-gray-300 flex items-end p-2 focus-within:border-[#07c160] focus-within:ring-1 focus-within:ring-[#07c160] transition-all">
+        <div className="bg-white rounded-xl border border-gray-300 flex flex-col p-2 focus-within:border-[#07c160] focus-within:ring-1 focus-within:ring-[#07c160] transition-all">
           <textarea
             id="chat-input"
             value={input}
@@ -204,16 +221,26 @@ export default function RightPanel() {
             }}
             onKeyDown={handleKeyDown}
             placeholder="输入您的问题，按 Enter 发送，Shift + Enter 换行..."
-            className="flex-1 min-h-[44px] max-h-[200px] p-2 bg-transparent outline-none resize-none text-sm text-gray-800 overflow-y-auto"
+            className="w-full min-h-[44px] max-h-[200px] p-2 bg-transparent outline-none resize-none text-sm text-gray-800 overflow-y-auto"
             rows={1}
           />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading || !activeSessionId}
-            className="p-2 m-1 bg-[#07c160] hover:bg-[#06ad56] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            <Send size={18} />
-          </button>
+          <div className="flex items-center justify-between mt-2 px-1">
+            <select
+              value={sendMode}
+              onChange={(e) => setSendMode(e.target.value as 'chat' | 'work')}
+              className="text-xs font-medium bg-gray-100 text-gray-600 border-none rounded-md px-2 py-1 outline-none cursor-pointer hover:bg-gray-200 transition-colors"
+            >
+              <option value="chat">💬 对话模式</option>
+              <option value="work">📝 工作模式 (生成预测文件)</option>
+            </select>
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading || !activeSessionId}
+              className="p-2 bg-[#07c160] hover:bg-[#06ad56] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <Send size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

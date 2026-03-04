@@ -42,14 +42,17 @@ interface AppState {
   selectedFileId: string | null;
   activeNav: "chat" | "files";
   isSidebarOpen: boolean;
+  mobileTab: "workspace" | "chat";
 
   setActiveNav: (nav: "chat" | "files") => void;
   toggleSidebar: () => void;
   setSidebarOpen: (isOpen: boolean) => void;
+  setMobileTab: (tab: "workspace" | "chat") => void;
   addSession: () => void;
   removeSession: (id: string) => void;
   setActiveSessionId: (id: string) => void;
   addMessage: (msg: Message) => void;
+  updateMessage: (id: string, content: string) => void;
   addFile: (file: FileItem) => void;
   removeFile: (id: string) => void;
   updateFileContent: (id: string, content: string) => void;
@@ -73,7 +76,7 @@ export const useStore = create<AppState>((set) => ({
     aiModel: "gpt-4o",
     ragProvider: "Nexa AI",
     ragApiKey: "",
-    ragBaseUrl: "http://localhost:8080/v1",
+    ragBaseUrl: "",
     ragModel: "nexa-rag",
   },
   isSettingsOpen: false,
@@ -81,10 +84,12 @@ export const useStore = create<AppState>((set) => ({
   selectedFileId: null,
   activeNav: "files",
   isSidebarOpen: true,
+  mobileTab: "chat",
 
   setActiveNav: (nav) => set({ activeNav: nav, isSidebarOpen: true }),
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
   setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
+  setMobileTab: (tab) => set({ mobileTab: tab }),
   addSession: () =>
     set((state) => {
       const newId = Date.now().toString();
@@ -119,6 +124,18 @@ export const useStore = create<AppState>((set) => ({
               ? msg.content.substring(0, 15)
               : s.title;
           return { ...s, title, messages: [...s.messages, msg] };
+        }
+        return s;
+      }),
+    })),
+  updateMessage: (id, content) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => {
+        if (s.id === state.activeSessionId) {
+          return {
+            ...s,
+            messages: s.messages.map((m) => (m.id === id ? { ...m, content } : m)),
+          };
         }
         return s;
       }),

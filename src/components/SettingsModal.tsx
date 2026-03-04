@@ -16,6 +16,19 @@ const AI_PROVIDERS = [
 
 const RAG_PROVIDERS = ["Nexa AI", "LM Studio", "Ollama", "Custom"];
 
+const PROVIDER_URLS: Record<string, string> = {
+  "DeepSeek": "https://api.deepseek.com/v1",
+  "GLM": "https://open.bigmodel.cn/api/paas/v4",
+  "Qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "魔塔社区 (ModelScope)": "https://api-inference.modelscope.cn/v1",
+  "Gemini": "",
+  "OpenAI": "https://api.openai.com/v1",
+  "LM Studio": "http://localhost:1234/v1",
+  "Ollama": "http://localhost:11434/v1",
+  "Nexa AI": "http://localhost:8080/v1",
+  "Custom": ""
+};
+
 export default function SettingsModal() {
   const { isSettingsOpen, setSettingsOpen, settings, updateSettings } =
     useStore();
@@ -36,7 +49,20 @@ export default function SettingsModal() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setLocalSettings((prev) => ({ ...prev, [name]: value }));
+    
+    setLocalSettings((prev) => {
+      const newSettings = { ...prev, [name]: value };
+      
+      // Auto-fill base URL when provider changes
+      if (name === 'aiProvider' && PROVIDER_URLS[value] !== undefined) {
+        newSettings.aiBaseUrl = PROVIDER_URLS[value];
+      }
+      if (name === 'ragProvider' && PROVIDER_URLS[value] !== undefined) {
+        newSettings.ragBaseUrl = PROVIDER_URLS[value];
+      }
+      
+      return newSettings;
+    });
   };
 
   return (
