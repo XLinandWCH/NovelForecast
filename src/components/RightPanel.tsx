@@ -79,7 +79,7 @@ export default function RightPanel() {
           addMessage({
             id: `sys_${Date.now()}`,
             role: "system",
-            content: `[系统提示] RAG 检索失败，已降级为全文匹配。\n\n**可能的原因：**\n1. RAG 服务未启动或配置错误。\n2. 跨域 (CORS) 限制：如果您在本地运行 RAG (如 http://localhost)，而当前网页是 HTTPS (如 Cloudflare)，浏览器会拦截请求 (Mixed Content)。\n\n**解决方法：**\n请使用 ngrok 或 Cloudflare Tunnels 将本地 RAG 服务暴露为 HTTPS 链接，并在设置中更新 RAG Base URL。\n\n*错误详情: ${error.message}*`,
+            content: `[系统提示] RAG 检索失败，已降级为全文匹配。\n\n**可能的原因：**\n1. RAG 服务未启动或配置错误。\n2. 跨域 (CORS) 限制：当前网页是 HTTPS，浏览器会拦截发往 \`http://localhost\` 的请求 (Mixed Content)。\n\n**解决方法 (任选其一)：**\n- **方法 A (最简单)**：尝试将 RAG Base URL 中的 \`localhost\` 改为 \`127.0.0.1\` (部分浏览器允许此特例)。\n- **方法 B**：使用 [ngrok](https://ngrok.com/) 或 Cloudflare Tunnels 将本地服务暴露为 HTTPS 链接。\n- **方法 C**：在浏览器设置中允许当前网站的“不安全内容 (Insecure content)”。\n\n*错误详情: ${error.message}*`,
           });
 
           // Fallback to naive if RAG fails
@@ -155,6 +155,32 @@ export default function RightPanel() {
 
   return (
     <div className="flex flex-col h-full bg-[#f5f5f5]">
+      {/* Header */}
+      <div className="h-14 border-b border-gray-300 flex items-center justify-between px-6 bg-[#f5f5f5] flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img 
+              src="/ai-logo.png" 
+              alt="AI" 
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerText = 'AI';
+              }}
+            />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">
+              聊天窗口
+            </h2>
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-[#07c160]"></span>
+              AI: {settings.aiProvider} | RAG: {settings.ragProvider}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (

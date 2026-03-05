@@ -14,7 +14,17 @@ const AI_PROVIDERS = [
   "Custom",
 ];
 
-const RAG_PROVIDERS = ["Nexa AI", "LM Studio", "Ollama", "Custom"];
+const RAG_PROVIDERS = [
+  "Nexa AI",
+  "LM Studio",
+  "Ollama",
+  "OpenAI",
+  "DeepSeek",
+  "GLM",
+  "Qwen",
+  "魔塔社区 (ModelScope)",
+  "Custom"
+];
 
 const PROVIDER_URLS: Record<string, string> = {
   "DeepSeek": "https://api.deepseek.com/v1",
