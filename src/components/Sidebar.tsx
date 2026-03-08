@@ -104,14 +104,35 @@ export default function Sidebar() {
                 
                 {/* Status Indicators */}
                 {file.status === 'waiting' && (
-                  <span className="text-[10px] text-yellow-600 mt-1 ml-6">等待解析 (未配置 RAG)</span>
+                  <span className="text-[10px] text-yellow-600 mt-1 ml-6 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                    未进行 RAG 解析
+                  </span>
+                )}
+                {file.status === 'error' && (
+                  <span className="text-[10px] text-red-500 mt-1 ml-6 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    RAG 解析失败
+                  </span>
+                )}
+                {file.status === 'parsed' && (
+                  <span className="text-[10px] text-[#07c160] mt-1 ml-6 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07c160]"></span>
+                    RAG 解析完成
+                  </span>
                 )}
                 {file.status === 'parsing' && (
-                  <div className="mt-1.5 ml-6 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-[#07c160] transition-all duration-300" 
-                      style={{ width: `${file.progress || 0}%` }}
-                    />
+                  <div className="mt-1.5 ml-6">
+                    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                      <span>正在进行 RAG 解析...</span>
+                      <span>{file.progress || 0}%</span>
+                    </div>
+                    <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#07c160] transition-all duration-300" 
+                        style={{ width: `${file.progress || 0}%` }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

@@ -3,17 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useEffect, useState } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { Settings, MessageSquare, FileText, Menu, X } from "lucide-react";
+import { Settings, MessageSquare, FileText, Menu, X, HelpCircle } from "lucide-react";
 import { useStore } from "./store/useStore";
 import Sidebar from "./components/Sidebar";
 import LeftPanel from "./components/LeftPanel";
 import RightPanel from "./components/RightPanel";
 import SettingsModal from "./components/SettingsModal";
 import UploadModal from "./components/UploadModal";
+import HelpModal from "./components/HelpModal";
 
 export default function App() {
-  const { setSettingsOpen, activeNav, setActiveNav, isSidebarOpen, toggleSidebar, mobileTab, setMobileTab } = useStore();
+  const { setSettingsOpen, activeNav, setActiveNav, isSidebarOpen, toggleSidebar, setSidebarOpen, mobileTab, setMobileTab } = useStore();
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setSidebarOpen]);
 
   const handleNavClick = (nav: 'chat' | 'files') => {
     if (activeNav === nav) {
@@ -42,6 +61,9 @@ export default function App() {
           <span className="text-white font-medium">AI 助手</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setIsHelpOpen(true)} className="p-2 text-gray-300 hover:text-white">
+            <HelpCircle size={20} />
+          </button>
           <button onClick={() => setSettingsOpen(true)} className="p-2 text-gray-300 hover:text-white">
             <Settings size={20} />
           </button>
@@ -82,13 +104,22 @@ export default function App() {
           </button>
         </div>
 
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="p-3 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 mt-auto"
-          title="设置"
-        >
-          <Settings size={24} />
-        </button>
+        <div className="flex flex-col gap-4 mt-auto">
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            className="p-3 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5"
+            title="使用指南"
+          >
+            <HelpCircle size={24} />
+          </button>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="p-3 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5"
+            title="设置"
+          >
+            <Settings size={24} />
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -155,6 +186,7 @@ export default function App() {
       {/* Settings Modal */}
       <SettingsModal />
       <UploadModal />
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 }

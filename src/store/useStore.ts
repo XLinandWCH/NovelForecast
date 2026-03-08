@@ -129,7 +129,7 @@ export const useStore = create<AppState>()(
       isUploadModalOpen: false,
       leftPanelMode: "text",
       selectedFileId: null,
-      activeNav: "files",
+      activeNav: "chat",
       isSidebarOpen: true,
       mobileTab: "chat",
       graphData: null,
