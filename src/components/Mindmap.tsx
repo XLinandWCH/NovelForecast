@@ -19,10 +19,10 @@ export default function Mindmap({ content }: MindmapProps) {
     if (!mmRef.current) {
       mmRef.current = Markmap.create(svgRef.current, {
         autoFit: true,
-        color: (node) => {
+        color: (node: any) => {
           // Custom color palette for nodes based on depth
           const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-          return colors[node.depth % colors.length];
+          return colors[(node.depth || 0) % colors.length];
         },
         paddingX: 16,
         spacingHorizontal: 80,

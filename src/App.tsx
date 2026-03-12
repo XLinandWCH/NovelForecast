@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { Settings, MessageSquare, FileText, Menu, X, HelpCircle } from "lucide-react";
+import { Settings, MessageSquare, FileText, Menu, X, HelpCircle, Star } from "lucide-react";
 import { useStore } from "./store/useStore";
 import Sidebar from "./components/Sidebar";
 import LeftPanel from "./components/LeftPanel";
@@ -13,9 +13,10 @@ import RightPanel from "./components/RightPanel";
 import SettingsModal from "./components/SettingsModal";
 import UploadModal from "./components/UploadModal";
 import HelpModal from "./components/HelpModal";
+import FeedbackShowcase from "./components/FeedbackShowcase";
 
 export default function App() {
-  const { setSettingsOpen, activeNav, setActiveNav, isSidebarOpen, toggleSidebar, setSidebarOpen, mobileTab, setMobileTab } = useStore();
+  const { setSettingsOpen, activeNav, setActiveNav, isSidebarOpen, toggleSidebar, setSidebarOpen, mobileTab, setMobileTab, showFeedbackShowcase, setShowFeedbackShowcase } = useStore();
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
@@ -106,6 +107,13 @@ export default function App() {
 
         <div className="flex flex-col gap-4 mt-auto">
           <button
+            onClick={() => setShowFeedbackShowcase(!showFeedbackShowcase)}
+            className={`p-3 transition-colors rounded-xl ${showFeedbackShowcase ? 'text-[#07c160] bg-white/10' : 'text-gray-400 hover:text-[#07c160] hover:bg-white/5'}`}
+            title="反馈精选"
+          >
+            <Star size={24} />
+          </button>
+          <button
             onClick={() => setIsHelpOpen(true)}
             className="p-3 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5"
             title="使用指南"
@@ -187,6 +195,13 @@ export default function App() {
       <SettingsModal />
       <UploadModal />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      
+      {/* Feedback Showcase Overlay */}
+      {showFeedbackShowcase && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+          <FeedbackShowcase />
+        </div>
+      )}
     </div>
   );
 }

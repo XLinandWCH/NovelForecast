@@ -63,7 +63,7 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
             </div>
             <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-4">
               <strong>为什么需要内网穿透？</strong><br/>
-              如果您在本地电脑上运行了 LM Studio 或 Ollama（例如地址是 <code>http://127.0.0.1:1234</code>），由于本应用运行在云端浏览器中，它是无法直接访问您电脑的 <code>127.0.0.1</code> 的。因此，我们需要使用 <strong>ngrok</strong> 将您的本地服务暴露为一个公网 HTTPS 地址。
+              如果您在本地电脑上运行了 Nexa AI、LM Studio 或 Ollama（例如地址是 <code>http://127.0.0.1:18181</code>），由于本应用运行在云端浏览器中，它是无法直接访问您电脑的 <code>127.0.0.1</code> 的。因此，我们需要使用 <strong>ngrok</strong> 将您的本地服务暴露为一个公网 HTTPS 地址。
             </div>
 
             <div className="space-y-6">
@@ -73,6 +73,7 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                 <div>
                   <h4 className="font-semibold text-gray-800 mb-1">启动本地大模型服务</h4>
                   <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li><strong>Nexa AI:</strong> 在终端运行 <code>nexa serve NexaAI/embeddinggemma-300m-npu</code> (默认端口 <code>18181</code>)。</li>
                     <li><strong>LM Studio:</strong> 打开 Local Server，确保端口为 <code>1234</code>，并点击 Start。</li>
                     <li><strong>Ollama:</strong> 在终端运行 <code>ollama serve</code> (默认端口 <code>11434</code>)。</li>
                   </ul>
@@ -120,13 +121,15 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                   <h4 className="font-semibold text-gray-800 mb-1">启动内网穿透</h4>
                   <p className="text-sm text-gray-600 mb-2">在终端/命令行中运行以下命令（根据您的本地服务端口）：</p>
                   <div className="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm">
-                    <div className="text-gray-400 text-xs mb-1"># 如果使用 LM Studio (端口 1234)</div>
+                    <div className="text-gray-400 text-xs mb-1"># 如果使用 Nexa AI (端口 18181)</div>
+                    <div>ngrok http 18181</div>
+                    <div className="text-gray-400 text-xs mt-3 mb-1"># 如果使用 LM Studio (端口 1234)</div>
                     <div>ngrok http 1234</div>
                     <div className="text-gray-400 text-xs mt-3 mb-1"># 如果使用 Ollama (端口 11434)</div>
                     <div>ngrok http 11434</div>
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
-                    运行后，终端会显示类似 <code>Forwarding https://1a2b-3c4d.ngrok-free.app -&gt; http://localhost:1234</code> 的信息。
+                    运行后，终端会显示类似 <code>Forwarding https://1a2b-3c4d.ngrok-free.app -&gt; http://localhost:18181</code> 的信息。
                   </p>
                 </div>
               </div>
@@ -138,7 +141,9 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
                   <h4 className="font-semibold text-gray-800 mb-1">在应用中配置</h4>
                   <p className="text-sm text-gray-600">
                     复制上一步中生成的 <strong>https://...ngrok-free.app</strong> 地址。<br/>
-                    打开本应用的 <strong>设置 -&gt; RAG 供应商</strong>，选择 <strong>Local (LM Studio)</strong>，将复制的地址填入 <strong>API Base URL</strong> 中（注意保留 <code>/v1</code> 后缀，例如：<code>https://1a2b-3c4d.ngrok-free.app/v1</code>）。
+                    打开本应用的 <strong>设置 -&gt; RAG 供应商</strong>（或 AI 大模型供应商），选择 <strong>Local (LM Studio / OpenAI Compatible)</strong>。<br/>
+                    将复制的地址填入 <strong>API Base URL</strong> 中（注意保留 <code>/v1</code> 后缀，例如：<code>https://1a2b-3c4d.ngrok-free.app/v1</code>）。<br/>
+                    <em>注：Nexa AI 的 API 兼容 OpenAI 格式，因此可以直接使用 <code>/v1</code> 后缀。</em>
                   </p>
                 </div>
               </div>

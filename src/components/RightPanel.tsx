@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Settings2, Loader2 } from "lucide-react";
+import { Send, Bot, User, Settings2, Loader2, CheckCircle2, CircleDashed, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { useStore, Message } from "../store/useStore";
+import { useStore, Message, Step } from "../store/useStore";
 import { streamAI } from "../utils/aiClient";
 import { getEmbeddings, cosineSimilarity } from "../utils/ragClient";
 
 export default function RightPanel() {
   const { 
-    sessions, activeSessionId, addMessage, updateMessage, settings, files, 
+    sessions, activeSessionId, addMessage, updateMessage, updateMessageSteps, settings, files, 
     addFile, updateFileContent, setSelectedFileId, setLeftPanelMode, setActiveNav
   } = useStore();
   const [input, setInput] = useState("");
@@ -45,9 +45,29 @@ export default function RightPanel() {
       textarea.style.height = 'auto';
     }
 
+    const assistantMessageId = (Date.now() + 1).toString();
+    const initialSteps: Step[] = [
+      { id: 'step1', text: '思考调用工具', status: 'pending' },
+      { id: 'step2', text: '调用 RAG 检索验证', status: 'pending' },
+      { id: 'step3', text: '分析语言风格与提示词要求', status: 'pending' },
+      { id: 'step4', text: '准备生成最终内容', status: 'pending' }
+    ];
+
+    addMessage({
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      steps: initialSteps
+    });
+
     try {
       let context = "";
       
+      // Step 1: 思考调用工具
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'running' } : s));
+      await new Promise(r => setTimeout(r, 800));
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'success' } : i === 1 ? { ...s, status: 'running' } : s));
+
       // Actual RAG Semantic Search
       if (settings.ragBaseUrl && settings.ragBaseUrl.trim() !== '') {
         try {
@@ -90,6 +110,17 @@ export default function RightPanel() {
         context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
       }
 
+      // Step 3: 分析语言风格
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i <= 1 ? { ...s, status: 'success' } : i === 2 ? { ...s, status: 'running' } : s));
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Step 4: 准备生成
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i <= 2 ? { ...s, status: 'success' } : i === 3 ? { ...s, status: 'running' } : s));
+      await new Promise(r => setTimeout(r, 600));
+
+      // All steps success
+      updateMessageSteps(assistantMessageId, initialSteps.map(s => ({ ...s, status: 'success' })));
+
       let finalContent = '';
 
       if (sendMode === 'work') {
@@ -107,27 +138,17 @@ export default function RightPanel() {
         setSelectedFileId(predictionFileId);
         setLeftPanelMode('text');
 
+        updateMessage(assistantMessageId, `正在左侧工作区生成内容：**预测: ${input.substring(0, 10)}...**`);
+
         await streamAI([...messages, userMessage], settings, context, (chunk) => {
           finalContent = chunk;
           updateFileContent(predictionFileId, chunk);
         });
 
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: `预测完成！结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看结构。`,
-        };
-        addMessage(assistantMessage);
+        updateMessage(assistantMessageId, `预测完成！结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看结构。`);
 
       } else {
         // Chat mode: stream directly to a new message
-        const assistantMessageId = (Date.now() + 1).toString();
-        addMessage({
-          id: assistantMessageId,
-          role: "assistant",
-          content: "正在思考...",
-        });
-
         await streamAI([...messages, userMessage], settings, context, (chunk) => {
           finalContent = chunk;
           updateMessage(assistantMessageId, chunk);
@@ -222,9 +243,25 @@ export default function RightPanel() {
                     ? "bg-[#95ec69] text-gray-900 rounded-tr-sm"
                     : msg.role === "system"
                       ? "bg-red-50 text-red-800 border border-red-200 rounded-tl-sm"
-                      : "bg-white text-gray-800 rounded-tl-sm"
+                      : "bg-white text-gray-800 rounded-tl-sm w-full"
                 }`}
               >
+                {msg.steps && msg.steps.length > 0 && (
+                  <div className="mb-3 space-y-2 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
+                    {msg.steps.map(step => (
+                      <div key={step.id} className="flex items-center gap-2 text-sm">
+                        {step.status === 'pending' && <CircleDashed size={16} className="text-gray-300" />}
+                        {step.status === 'running' && <Loader2 size={16} className="text-[#07c160] animate-spin" />}
+                        {step.status === 'success' && <CheckCircle2 size={16} className="text-[#07c160]" />}
+                        {step.status === 'error' && <X size={16} className="text-red-500" />}
+                        <span className={`${step.status === 'pending' ? 'text-gray-400' : step.status === 'running' ? 'text-gray-700 font-medium' : step.status === 'success' ? 'text-gray-600' : 'text-red-600'}`}>
+                          {step.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 {msg.role === "user" ? (
                   msg.content.split("\n").map((line, i) => (
                     <React.Fragment key={i}>

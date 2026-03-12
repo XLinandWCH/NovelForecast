@@ -140,7 +140,7 @@ ${context}
         if (done) break;
         
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\\n').filter(line => line.trim() !== '');
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
         
         for (const line of lines) {
           if (line.replace(/^data: /, '').trim() === '[DONE]') {

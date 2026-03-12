@@ -2,10 +2,17 @@ import { create } from "zustand";
 import { persist, createJSONStorage, StateStorage } from "zustand/middleware";
 import { get, set, del } from "idb-keyval";
 
+export interface Step {
+  id: string;
+  text: string;
+  status: 'pending' | 'running' | 'success' | 'error';
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  steps?: Step[];
 }
 
 export interface ChatSession {
@@ -67,6 +74,7 @@ interface AppState {
   isSettingsOpen: boolean;
   isUploadModalOpen: boolean;
   leftPanelMode: "mindmap" | "text" | "graph";
+  showFeedbackShowcase: boolean;
   selectedFileId: string | null;
   activeNav: "chat" | "files";
   isSidebarOpen: boolean;
@@ -82,6 +90,7 @@ interface AppState {
   setActiveSessionId: (id: string) => void;
   addMessage: (msg: Message) => void;
   updateMessage: (id: string, content: string) => void;
+  updateMessageSteps: (id: string, steps: Step[]) => void;
   addFile: (file: FileItem) => void;
   removeFile: (id: string) => void;
   updateFileContent: (id: string, content: string) => void;
@@ -89,6 +98,7 @@ interface AppState {
   updateFileChunks: (id: string, chunks: FileChunk[]) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   setSettingsOpen: (isOpen: boolean) => void;
+  setShowFeedbackShowcase: (show: boolean) => void;
   setUploadModalOpen: (isOpen: boolean) => void;
   setLeftPanelMode: (mode: "mindmap" | "text" | "graph") => void;
   setSelectedFileId: (id: string | null) => void;
@@ -126,6 +136,7 @@ export const useStore = create<AppState>()(
         ragModel: "nexa-rag",
       },
       isSettingsOpen: false,
+      showFeedbackShowcase: false,
       isUploadModalOpen: false,
       leftPanelMode: "text",
       selectedFileId: null,
@@ -188,6 +199,18 @@ export const useStore = create<AppState>()(
             return s;
           }),
         })),
+      updateMessageSteps: (id, steps) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id === state.activeSessionId) {
+              return {
+                ...s,
+                messages: s.messages.map((m) => (m.id === id ? { ...m, steps } : m)),
+              };
+            }
+            return s;
+          }),
+        })),
       addFile: (file) => set((state) => ({ files: [file, ...state.files] })),
       removeFile: (id) =>
         set((state) => ({
@@ -209,6 +232,7 @@ export const useStore = create<AppState>()(
       updateSettings: (newSettings) =>
         set((state) => ({ settings: { ...state.settings, ...newSettings } })),
       setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
+      setShowFeedbackShowcase: (show) => set({ showFeedbackShowcase: show }),
       setUploadModalOpen: (isOpen) => set({ isUploadModalOpen: isOpen }),
       setLeftPanelMode: (mode) => set({ leftPanelMode: mode }),
       setSelectedFileId: (id) => set({ selectedFileId: id }),
