@@ -93,17 +93,17 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] md:h-[85vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Left Sidebar */}
-        <div className="w-48 bg-gray-50 border-r border-gray-100 flex flex-col py-6">
-          <div className="px-6 mb-6">
+        {/* Left Sidebar / Top Tabs on Mobile */}
+        <div className="w-full md:w-48 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-100 flex flex-row md:flex-col py-2 md:py-6 flex-shrink-0 overflow-x-auto">
+          <div className="hidden md:block px-6 mb-6">
             <h2 className="text-lg font-bold text-gray-800">设置</h2>
           </div>
-          <div className="flex flex-col gap-1 px-3">
+          <div className="flex flex-row md:flex-col gap-1 px-3 min-w-max md:min-w-0">
             <button
               onClick={() => setActiveTab('system')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 md:gap-3 px-4 md:px-3 py-2 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'system' 
                   ? 'bg-white text-[#07c160] shadow-sm' 
                   : 'text-gray-600 hover:bg-gray-100'
@@ -114,7 +114,7 @@ export default function SettingsModal() {
             </button>
             <button
               onClick={() => setActiveTab('feedback')}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 md:gap-3 px-4 md:px-3 py-2 md:py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'feedback' 
                   ? 'bg-white text-[#07c160] shadow-sm' 
                   : 'text-gray-600 hover:bg-gray-100'
@@ -127,10 +127,10 @@ export default function SettingsModal() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0 min-w-0">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
-            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+          <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 bg-white flex-shrink-0">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-800 flex items-center gap-2">
               {activeTab === 'system' ? (
                 <><Server className="text-[#07c160]" /> 系统设置</>
               ) : (
@@ -146,7 +146,7 @@ export default function SettingsModal() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0">
             {activeTab === 'system' ? (
               <div className="space-y-8">
                 {/* AI Settings Section */}
