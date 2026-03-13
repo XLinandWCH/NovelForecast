@@ -56,9 +56,16 @@ export async function getEmbeddings(texts: string[], settings: Settings): Promis
     }
   }
 
-  let fetchUrl = `${baseUrl}/embeddings`;
+  // If the user already included /embeddings in the base URL, don't append it again
+  let fullUrl = baseUrl;
+  if (!baseUrl.endsWith('/embeddings')) {
+    fullUrl = `${baseUrl}/embeddings`;
+  }
+
+  let fetchUrl = fullUrl;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true', // Bypass ngrok free tier warning
   };
 
   if (settings.ragApiKey) {
@@ -67,37 +74,51 @@ export async function getEmbeddings(texts: string[], settings: Settings): Promis
 
   // Proxy logic to bypass CORS for all external URLs
   try {
-    const urlObj = new URL(baseUrl);
+    const urlObj = new URL(fullUrl);
     if (urlObj.origin !== window.location.origin) {
-      fetchUrl = `/api/rag${urlObj.pathname}/embeddings`;
+      fetchUrl = `/api/rag${urlObj.pathname}`;
       headers['x-rag-target'] = `${urlObj.protocol}//${urlObj.host}`;
     }
   } catch (e) {
     console.warn("Invalid RAG Base URL format", e);
   }
 
-  const response = await fetch(fetchUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      input: texts,
-      model: settings.ragModel
-    })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Embedding API error (${response.status}): ${errText}`);
+  try {
+    const response = await fetch(fetchUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        input: texts,
+        model: settings.ragModel
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Embedding API error (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    if (!data.data || !Array.isArray(data.data)) {
+      throw new Error("Invalid response format from Embedding API");
+    }
+
+    // Ensure they are sorted by index to match the input order
+    const sortedData = data.data.sort((a: any, b: any) => a.index - b.index);
+    return sortedData.map((d: any) => d.embedding);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Embedding API request timed out after 15 seconds');
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  if (!data.data || !Array.isArray(data.data)) {
-    throw new Error("Invalid response format from Embedding API");
-  }
-
-  // Ensure they are sorted by index to match the input order
-  const sortedData = data.data.sort((a: any, b: any) => a.index - b.index);
-  return sortedData.map((d: any) => d.embedding);
 }
 
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {

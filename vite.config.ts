@@ -23,6 +23,7 @@ export default defineConfig(({mode}) => {
         '/api/rag': {
           target: 'http://127.0.0.1:18181',
           changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replace(/^\/api\/rag/, ''),
           router: (req) => {
             const targetUrl = req.headers['x-rag-target'];
@@ -34,7 +35,7 @@ export default defineConfig(({mode}) => {
             if (req.method === 'OPTIONS') {
               res.setHeader('Access-Control-Allow-Origin', '*');
               res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-rag-target');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-rag-target, ngrok-skip-browser-warning');
               res.statusCode = 204;
               res.end();
               return false;
@@ -44,6 +45,7 @@ export default defineConfig(({mode}) => {
         '/api/ai': {
           target: 'http://127.0.0.1:11434',
           changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replace(/^\/api\/ai/, ''),
           router: (req) => {
             const targetUrl = req.headers['x-ai-target'];
@@ -55,7 +57,7 @@ export default defineConfig(({mode}) => {
             if (req.method === 'OPTIONS') {
               res.setHeader('Access-Control-Allow-Origin', '*');
               res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-ai-target');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-ai-target, ngrok-skip-browser-warning');
               res.statusCode = 204;
               res.end();
               return false;

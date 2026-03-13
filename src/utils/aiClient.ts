@@ -5,6 +5,7 @@ function getProxyConfig(baseUrl: string, apiKey: string, type: 'ai' | 'rag') {
   let fetchUrl = baseUrl;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true', // Bypass ngrok free tier warning
   };
 
   if (apiKey) {
@@ -56,24 +57,39 @@ ${content.substring(0, 15000)} // 限制长度避免超长
       return JSON.parse(response.text || '{}');
     } else {
       const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
-      const response = await fetch(fetchUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: settings.aiModel,
-          messages: [{ role: 'user', content: systemPrompt }],
-          temperature: 0.1,
-          response_format: { type: "json_object" }
-        })
-      });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      try {
+        const response = await fetch(fetchUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: settings.aiModel,
+            messages: [{ role: 'user', content: systemPrompt }],
+            temperature: 0.1,
+            response_format: { type: "json_object" }
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const contentStr = data.choices[0]?.message?.content || '{}';
+        return JSON.parse(contentStr);
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('图谱生成请求超时');
+        }
+        throw error;
       }
-
-      const data = await response.json();
-      const contentStr = data.choices[0]?.message?.content || '{}';
-      return JSON.parse(contentStr);
     }
   } catch (error: any) {
     console.error('Graph Generation Error:', error);
@@ -114,23 +130,39 @@ export async function generateSearchQuery(
       return text === 'NO_SEARCH' ? null : text;
     } else {
       const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
-      const response = await fetch(fetchUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: settings.aiModel,
-          messages: formattedMessages,
-          temperature: 0.1,
-        })
-      });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      try {
+        const response = await fetch(fetchUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: settings.aiModel,
+            messages: formattedMessages,
+            temperature: 0.1,
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const text = data.choices[0]?.message?.content?.trim() || 'NO_SEARCH';
+        return text === 'NO_SEARCH' ? null : text;
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          console.warn('Search Query Generation timed out, skipping search.');
+          return null;
+        }
+        throw error;
       }
-
-      const data = await response.json();
-      const text = data.choices[0]?.message?.content?.trim() || 'NO_SEARCH';
-      return text === 'NO_SEARCH' ? null : text;
     }
   } catch (error: any) {
     console.error('Search Query Generation Error:', error);
@@ -207,54 +239,72 @@ ${context}
     } else {
       // Use OpenAI compatible endpoint
       const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
-      const response = await fetch(fetchUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: settings.aiModel,
-          messages: formattedMessages,
-          temperature: 0.7,
-          stream: true,
-        })
-      });
+      
+      const controller = new AbortController();
+      let timeoutId = setTimeout(() => controller.abort(), 30000); // 30s initial timeout
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
-      }
+      try {
+        const response = await fetch(fetchUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: settings.aiModel,
+            messages: formattedMessages,
+            temperature: 0.7,
+            stream: true,
+          }),
+          signal: controller.signal
+        });
 
-      if (!response.body) throw new Error('No response body');
+        clearTimeout(timeoutId);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let fullText = '';
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API Error: ${response.status} - ${errorText}`);
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-        
-        for (const line of lines) {
-          if (line.replace(/^data: /, '').trim() === '[DONE]') {
-            return fullText;
-          }
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.replace(/^data: /, ''));
-              const content = data.choices[0]?.delta?.content;
-              if (content) {
-                fullText += content;
-                onChunk(fullText);
+        if (!response.body) throw new Error('No response body');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let fullText = '';
+
+        while (true) {
+          timeoutId = setTimeout(() => controller.abort(), 15000); // 15s between chunks
+          const { done, value } = await reader.read();
+          clearTimeout(timeoutId);
+          
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter(line => line.trim() !== '');
+          
+          for (const line of lines) {
+            if (line.replace(/^data: /, '').trim() === '[DONE]') {
+              return fullText;
+            }
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.replace(/^data: /, ''));
+                const content = data.choices[0]?.delta?.content;
+                if (content) {
+                  fullText += content;
+                  onChunk(fullText);
+                }
+              } catch (e) {
+                console.error('Error parsing stream chunk', e);
               }
-            } catch (e) {
-              console.error('Error parsing stream chunk', e);
             }
           }
         }
+        return fullText;
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('AI 生成请求超时，请检查您的模型服务或网络连接。');
+        }
+        throw error;
       }
-      return fullText;
     }
   } catch (error: any) {
     console.error('AI Call Error:', error);
