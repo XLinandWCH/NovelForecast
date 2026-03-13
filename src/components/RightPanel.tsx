@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Settings2, Loader2, CheckCircle2, CircleDashed, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useStore, Message, Step } from "../store/useStore";
-import { streamAI } from "../utils/aiClient";
+import { streamAI, generateSearchQuery } from "../utils/aiClient";
 import { getEmbeddings, cosineSimilarity } from "../utils/ragClient";
 
 export default function RightPanel() {
@@ -47,7 +47,7 @@ export default function RightPanel() {
 
     const assistantMessageId = (Date.now() + 1).toString();
     const initialSteps: Step[] = [
-      { id: 'step1', text: '思考调用工具', status: 'pending' },
+      { id: 'step1', text: '思考是否需要调用工具', status: 'pending' },
       { id: 'step2', text: '调用 RAG 检索验证', status: 'pending' },
       { id: 'step3', text: '分析语言风格与提示词要求', status: 'pending' },
       { id: 'step4', text: '准备生成最终内容', status: 'pending' }
@@ -65,14 +65,20 @@ export default function RightPanel() {
       
       // Step 1: 思考调用工具
       updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'running' } : s));
-      await new Promise(r => setTimeout(r, 800));
-      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'success' } : i === 1 ? { ...s, status: 'running' } : s));
+      
+      const searchQuery = await generateSearchQuery([...messages, userMessage], settings);
+      
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => {
+        if (i === 0) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
+        if (i === 1) return { ...s, status: 'running' };
+        return s;
+      }));
 
       // Actual RAG Semantic Search
-      if (settings.ragBaseUrl && settings.ragBaseUrl.trim() !== '') {
+      if (searchQuery && settings.ragBaseUrl && settings.ragBaseUrl.trim() !== '') {
         try {
           // 1. Embed user query
-          const queryEmbedding = (await getEmbeddings([input], settings))[0];
+          const queryEmbedding = (await getEmbeddings([searchQuery], settings))[0];
           
           // 2. Collect all chunks from all parsed files
           const allChunks: { text: string; similarity: number; fileName: string }[] = [];
@@ -105,13 +111,21 @@ export default function RightPanel() {
           // Fallback to naive if RAG fails
           context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
         }
+      } else if (!searchQuery) {
+        // Fallback to naive context if no search query needed but we still want to provide context
+        context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
       } else {
         // Fallback to naive context if RAG not configured
         context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
       }
 
       // Step 3: 分析语言风格
-      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i <= 1 ? { ...s, status: 'success' } : i === 2 ? { ...s, status: 'running' } : s));
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => {
+        if (i === 0) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
+        if (i === 1) return { ...s, status: 'success', text: (!searchQuery) ? '跳过检索' : (!settings.ragBaseUrl) ? '未配置RAG，降级全文匹配' : 'RAG 检索完成' };
+        if (i === 2) return { ...s, status: 'running' };
+        return s;
+      }));
       await new Promise(r => setTimeout(r, 1000));
 
       // Step 4: 准备生成

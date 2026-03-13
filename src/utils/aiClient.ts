@@ -59,14 +59,79 @@ ${content.substring(0, 15000)} // 限制长度避免超长
     throw new Error(error.message || '生成图谱失败');
   }
 }
+export async function generateSearchQuery(
+  messages: Message[],
+  settings: Settings
+): Promise<string | null> {
+  const systemPrompt = `你是一个知识库检索助手。你的任务是判断用户最新的问题是否需要检索知识库。
+如果需要检索，请提取出最核心的搜索关键词（不要超过10个字）。
+如果不需要检索（例如一般的闲聊、打招呼），请直接输出 "NO_SEARCH"。
+只输出关键词或 "NO_SEARCH"，不要输出任何其他内容。`;
+
+  const formattedMessages = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content
+    }))
+  ];
+
+  try {
+    if (settings.aiProvider === 'Gemini') {
+      const defaultApiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : '';
+      const ai = new GoogleGenAI({ apiKey: settings.aiApiKey || defaultApiKey });
+      
+      const response = await ai.models.generateContent({
+        model: settings.aiModel || 'gemini-3-flash-preview',
+        contents: formattedMessages as any,
+        config: {
+          temperature: 0.1,
+        }
+      });
+      
+      const text = response.text?.trim() || 'NO_SEARCH';
+      return text === 'NO_SEARCH' ? null : text;
+    } else {
+      const response = await fetch(`${settings.aiBaseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.aiApiKey}`
+        },
+        body: JSON.stringify({
+          model: settings.aiModel,
+          messages: formattedMessages,
+          temperature: 0.1,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.choices[0]?.message?.content?.trim() || 'NO_SEARCH';
+      return text === 'NO_SEARCH' ? null : text;
+    }
+  } catch (error: any) {
+    console.error('Search Query Generation Error:', error);
+    return null; // Fallback to no search if error
+  }
+}
+
 export async function streamAI(
   messages: Message[],
   settings: Settings,
   context: string,
   onChunk: (text: string) => void
 ): Promise<string> {
-  const systemPrompt = `你是一个小说预测助手。请根据提供的知识库上下文和用户的提问进行回答。
-如果知识库中没有相关信息，请结合你的知识进行合理的预测和续写。
+  const systemPrompt = `你是一个严格基于给定知识库进行分析和推演的AI助手。
+请**严格且仅根据**以下提供的知识库上下文来回答用户的问题。
+
+【核心原则】
+1. 绝对不能脱离提供的文本内容。
+2. 如果用户询问的情节、人物或后续发展在上下文中没有提及，你必须明确回答“根据当前提供的文本，无法得知...”，**绝对禁止**使用你预训练知识中关于该小说的任何已有信息进行剧透或续写。
+3. 如果需要预测后续发展，只能基于当前提供的文本中的线索进行逻辑推演，而不能照搬原著的实际后续剧情。
 
 知识库上下文：
 ${context}

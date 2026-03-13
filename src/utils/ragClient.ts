@@ -47,7 +47,15 @@ export function chunkText(text: string, maxChunkSize = 500, overlap = 50): strin
 export async function getEmbeddings(texts: string[], settings: Settings): Promise<number[][]> {
   if (!settings.ragBaseUrl) throw new Error("RAG Base URL is not configured");
 
-  const baseUrl = settings.ragBaseUrl.replace(/\/$/, '');
+  let baseUrl = settings.ragBaseUrl.replace(/\/$/, '');
+  
+  // Auto-append /v1 for known OpenAI-compatible local providers if missing
+  if (!baseUrl.endsWith('/v1') && !baseUrl.endsWith('/api') && !baseUrl.includes('api.openai.com')) {
+    if (['Nexa AI', 'LM Studio', 'Ollama', 'OpenAI'].includes(settings.ragProvider)) {
+      baseUrl += '/v1';
+    }
+  }
+
   const url = `${baseUrl}/embeddings`;
 
   const response = await fetch(url, {
