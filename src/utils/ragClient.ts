@@ -56,14 +56,29 @@ export async function getEmbeddings(texts: string[], settings: Settings): Promis
     }
   }
 
-  const url = `${baseUrl}/embeddings`;
+  let fetchUrl = `${baseUrl}/embeddings`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
 
-  const response = await fetch(url, {
+  if (settings.ragApiKey) {
+    headers['Authorization'] = `Bearer ${settings.ragApiKey}`;
+  }
+
+  // Proxy logic to bypass CORS for all external URLs
+  try {
+    const urlObj = new URL(baseUrl);
+    if (urlObj.origin !== window.location.origin) {
+      fetchUrl = `/api/rag${urlObj.pathname}/embeddings`;
+      headers['x-rag-target'] = `${urlObj.protocol}//${urlObj.host}`;
+    }
+  } catch (e) {
+    console.warn("Invalid RAG Base URL format", e);
+  }
+
+  const response = await fetch(fetchUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(settings.ragApiKey ? { 'Authorization': `Bearer ${settings.ragApiKey}` } : {})
-    },
+    headers,
     body: JSON.stringify({
       input: texts,
       model: settings.ragModel

@@ -1,6 +1,29 @@
 import { GoogleGenAI } from '@google/genai';
 import { Settings, Message } from '../store/useStore';
 
+function getProxyConfig(baseUrl: string, apiKey: string, type: 'ai' | 'rag') {
+  let fetchUrl = baseUrl;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  try {
+    const urlObj = new URL(baseUrl);
+    if (urlObj.origin !== window.location.origin) {
+      fetchUrl = `/api/${type}${urlObj.pathname}`;
+      headers[`x-${type}-target`] = `${urlObj.protocol}//${urlObj.host}`;
+    }
+  } catch (e) {
+    console.warn(`Invalid ${type.toUpperCase()} Base URL format`, e);
+  }
+
+  return { fetchUrl, headers };
+}
+
 export async function generateGraphData(
   content: string,
   settings: Settings
@@ -32,12 +55,10 @@ ${content.substring(0, 15000)} // 限制长度避免超长
       
       return JSON.parse(response.text || '{}');
     } else {
-      const response = await fetch(`${settings.aiBaseUrl}/chat/completions`, {
+      const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
+      const response = await fetch(fetchUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.aiApiKey}`
-        },
+        headers,
         body: JSON.stringify({
           model: settings.aiModel,
           messages: [{ role: 'user', content: systemPrompt }],
@@ -92,12 +113,10 @@ export async function generateSearchQuery(
       const text = response.text?.trim() || 'NO_SEARCH';
       return text === 'NO_SEARCH' ? null : text;
     } else {
-      const response = await fetch(`${settings.aiBaseUrl}/chat/completions`, {
+      const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
+      const response = await fetch(fetchUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.aiApiKey}`
-        },
+        headers,
         body: JSON.stringify({
           model: settings.aiModel,
           messages: formattedMessages,
@@ -123,8 +142,19 @@ export async function streamAI(
   messages: Message[],
   settings: Settings,
   context: string,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  mode: 'chat' | 'work' = 'chat'
 ): Promise<string> {
+  const thinkInstructions = mode === 'work' ? `
+【先思而后行】
+在正式回答或续写之前，你必须先在 <think> 和 </think> 标签内写下你的思考过程。
+思考内容应包括：
+- 验证猜想的过程（分析现有线索）
+- 检索到的上下文是否足够支撑回答
+- 是否需要采用轮询或分段输出的判断
+- 整体结构安排
+` : '';
+
   const systemPrompt = `你是一个严格基于给定知识库进行分析和推演的AI助手。
 请**严格且仅根据**以下提供的知识库上下文来回答用户的问题。
 
@@ -132,7 +162,8 @@ export async function streamAI(
 1. 绝对不能脱离提供的文本内容。
 2. 如果用户询问的情节、人物或后续发展在上下文中没有提及，你必须明确回答“根据当前提供的文本，无法得知...”，**绝对禁止**使用你预训练知识中关于该小说的任何已有信息进行剧透或续写。
 3. 如果需要预测后续发展，只能基于当前提供的文本中的线索进行逻辑推演，而不能照搬原著的实际后续剧情。
-
+4. **排版要求**：输出的内容必须合理分段！绝对不要把所有句子挤在一起，请使用清晰的段落划分（每段之间使用换行符分隔），保证阅读体验。
+${thinkInstructions}
 知识库上下文：
 ${context}
 `;
@@ -175,12 +206,10 @@ ${context}
       return fullText;
     } else {
       // Use OpenAI compatible endpoint
-      const response = await fetch(`${settings.aiBaseUrl}/chat/completions`, {
+      const { fetchUrl, headers } = getProxyConfig(`${settings.aiBaseUrl}/chat/completions`, settings.aiApiKey, 'ai');
+      const response = await fetch(fetchUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.aiApiKey}`
-        },
+        headers,
         body: JSON.stringify({
           model: settings.aiModel,
           messages: formattedMessages,

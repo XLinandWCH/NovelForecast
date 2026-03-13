@@ -47,9 +47,9 @@ export default function RightPanel() {
 
     const assistantMessageId = (Date.now() + 1).toString();
     const initialSteps: Step[] = [
-      { id: 'step1', text: '思考是否需要调用工具', status: 'pending' },
-      { id: 'step2', text: '调用 RAG 检索验证', status: 'pending' },
-      { id: 'step3', text: '分析语言风格与提示词要求', status: 'pending' },
+      { id: 'step1', text: '分析语言风格与提示词要求', status: 'pending' },
+      { id: 'step2', text: '思考是否需要调用工具', status: 'pending' },
+      { id: 'step3', text: '调用 RAG 检索验证', status: 'pending' },
       { id: 'step4', text: '准备生成最终内容', status: 'pending' }
     ];
 
@@ -63,14 +63,18 @@ export default function RightPanel() {
     try {
       let context = "";
       
-      // Step 1: 思考调用工具
+      // Step 1: 分析语言风格
       updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'running' } : s));
+      await new Promise(r => setTimeout(r, 800));
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i === 0 ? { ...s, status: 'success' } : i === 1 ? { ...s, status: 'running' } : s));
       
+      // Step 2: 思考调用工具
       const searchQuery = await generateSearchQuery([...messages, userMessage], settings);
       
       updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => {
-        if (i === 0) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
-        if (i === 1) return { ...s, status: 'running' };
+        if (i === 0) return { ...s, status: 'success' };
+        if (i === 1) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
+        if (i === 2) return { ...s, status: 'running' };
         return s;
       }));
 
@@ -105,7 +109,7 @@ export default function RightPanel() {
           addMessage({
             id: `sys_${Date.now()}`,
             role: "system",
-            content: `[系统提示] RAG 检索失败，已降级为全文匹配。\n\n**可能的原因：**\n1. RAG 服务未启动或配置错误。\n2. 跨域 (CORS) 限制：当前网页是 HTTPS，浏览器会拦截发往 \`http://localhost\` 的请求 (Mixed Content)。\n\n**解决方法 (任选其一)：**\n- **方法 A (最简单)**：尝试将 RAG Base URL 中的 \`localhost\` 改为 \`127.0.0.1\` (部分浏览器允许此特例)。\n- **方法 B**：使用 [ngrok](https://ngrok.com/) 或 Cloudflare Tunnels 将本地服务暴露为 HTTPS 链接。\n- **方法 C**：在浏览器设置中允许当前网站的“不安全内容 (Insecure content)”。\n\n*错误详情: ${error.message}*`,
+            content: `[系统提示] RAG 检索失败，已降级为全文匹配。\n\n**可能的原因：**\n1. RAG 服务未启动或配置错误。\n2. 跨域 (CORS) 限制：当前网页是 HTTPS，如果您的 RAG 服务没有配置 HTTPS 或允许跨域，浏览器会拦截请求。\n\n**解决方法：**\n系统已自动为您配置了本地代理，但如果依然失败，请检查您的模型服务是否正常运行，或尝试使用 ngrok 等内网穿透工具。\n\n*错误详情: ${error.message}*`,
           });
 
           // Fallback to naive if RAG fails
@@ -119,21 +123,24 @@ export default function RightPanel() {
         context = files.filter(f => !f.id.startsWith('pred_')).map(f => f.content).join("\n\n").substring(0, 8000);
       }
 
-      // Step 3: 分析语言风格
+      // Step 3 & 4: 准备生成
       updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => {
-        if (i === 0) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
-        if (i === 1) return { ...s, status: 'success', text: (!searchQuery) ? '跳过检索' : (!settings.ragBaseUrl) ? '未配置RAG，降级全文匹配' : 'RAG 检索完成' };
-        if (i === 2) return { ...s, status: 'running' };
+        if (i === 0) return { ...s, status: 'success' };
+        if (i === 1) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
+        if (i === 2) return { ...s, status: 'success', text: (!searchQuery) ? '跳过检索' : (!settings.ragBaseUrl) ? '未配置RAG，降级全文匹配' : 'RAG 检索完成' };
+        if (i === 3) return { ...s, status: 'running' };
         return s;
       }));
-      await new Promise(r => setTimeout(r, 1000));
-
-      // Step 4: 准备生成
-      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => i <= 2 ? { ...s, status: 'success' } : i === 3 ? { ...s, status: 'running' } : s));
       await new Promise(r => setTimeout(r, 600));
 
       // All steps success
-      updateMessageSteps(assistantMessageId, initialSteps.map(s => ({ ...s, status: 'success' })));
+      updateMessageSteps(assistantMessageId, initialSteps.map((s, i) => {
+        if (i === 0) return { ...s, status: 'success' };
+        if (i === 1) return { ...s, status: 'success', text: searchQuery ? `决定调用检索工具，关键词: "${searchQuery}"` : '无需调用检索工具' };
+        if (i === 2) return { ...s, status: 'success', text: (!searchQuery) ? '跳过检索' : (!settings.ragBaseUrl) ? '未配置RAG，降级全文匹配' : 'RAG 检索完成' };
+        if (i === 3) return { ...s, status: 'success' };
+        return s;
+      }));
 
       let finalContent = '';
 
@@ -152,21 +159,55 @@ export default function RightPanel() {
         setSelectedFileId(predictionFileId);
         setLeftPanelMode('text');
 
-        updateMessage(assistantMessageId, `正在左侧工作区生成内容：**预测: ${input.substring(0, 10)}...**`);
+        let thoughtProcess = '';
 
         await streamAI([...messages, userMessage], settings, context, (chunk) => {
           finalContent = chunk;
-          updateFileContent(predictionFileId, chunk);
-        });
+          
+          // Parse <think> tags
+          const thinkMatch = chunk.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
+          const contentMatch = chunk.match(/<\/think>([\s\S]*)$/);
+          
+          if (thinkMatch) {
+            thoughtProcess = thinkMatch[1].trim();
+          }
+          
+          if (contentMatch) {
+            const actualContent = contentMatch[1].trimStart();
+            updateFileContent(predictionFileId, actualContent);
+            updateMessage(assistantMessageId, `**🤔 思考与验证过程：**\n\n${thoughtProcess}\n\n---\n*正在左侧工作区生成正文内容...*`);
+          } else if (thinkMatch) {
+            // Still thinking
+            updateMessage(assistantMessageId, `**🤔 思考与验证过程：**\n\n${thoughtProcess}\n\n---\n*正在思考中...*`);
+          } else if (!chunk.includes('<think>')) {
+            // Fallback if model doesn't output <think>
+            updateFileContent(predictionFileId, chunk);
+            updateMessage(assistantMessageId, `正在左侧工作区生成内容：**预测: ${input.substring(0, 10)}...**`);
+          }
+        }, 'work');
 
-        updateMessage(assistantMessageId, `预测完成！结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看结构。`);
+        if (thoughtProcess) {
+          updateMessage(assistantMessageId, `**🤔 思考与验证过程：**\n\n${thoughtProcess}\n\n---\n✅ **预测完成！**\n\n正文结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看人物结构。`);
+        } else {
+          updateMessage(assistantMessageId, `✅ **预测完成！**\n\n结果已输出至左侧工作区文件：**预测: ${input.substring(0, 10)}...**\n\n您可以切换到“导图视图”查看人物结构。`);
+        }
 
       } else {
         // Chat mode: stream directly to a new message
         await streamAI([...messages, userMessage], settings, context, (chunk) => {
           finalContent = chunk;
-          updateMessage(assistantMessageId, chunk);
-        });
+          // In chat mode, we can just render the <think> tags directly or format them
+          const formattedChunk = chunk
+            .replace(/<think>([\s\S]*?)<\/think>/g, (match, p1) => {
+              const quoted = p1.trim().split('\n').map((line: string) => `> ${line}`).join('\n');
+              return `**🤔 思考与验证过程：**\n${quoted}\n\n---\n\n`;
+            })
+            .replace(/<think>([\s\S]*)$/g, (match, p1) => {
+              const quoted = p1.trim().split('\n').map((line: string) => `> ${line}`).join('\n');
+              return `**🤔 思考与验证过程：**\n${quoted}`;
+            });
+          updateMessage(assistantMessageId, formattedChunk);
+        }, 'chat');
       }
 
     } catch (error: any) {
